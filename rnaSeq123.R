@@ -6,12 +6,23 @@
 rm(list=ls())
 args <- commandArgs(T)
 argNum <- length(args)
-#f(argNum <= 6){
-#   cat("\nError Options!\n\n")
-#   cat("Usage: Rscript rnaSeq123.R <Human|Mouse> <countsFileFolder> <countsFilePattern> <prefix>")
-#   quit()
-#}
+if(argNum < 4){
+    cat("\nError Options!\n\n")
+    cat("Usage: Rscript rnaSeq123.R <Human|Mouse> <prefix> <configFile> <outDir> \n\n")
+    cat("Note:\n")
+    cat("\t<configFile> contains four columns. The first column is the matrix files path, The second column is the name of the samples, the third column is the group, and the fourth column is the batch\n")
+    quit()
+}
 
+species <- args[1]
+prefix <- args[2]
+#countsFileDir <- args[3]
+#countsFilePattern <- args[4]
+configFile <- args[3]
+outdir <- args[4]
+#
+setwd(outdir)
+#
 if (!requireNamespace("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
 #load library
@@ -20,30 +31,42 @@ library(Glimma)
 library(edgeR)
 library(gplots)
 library(RColorBrewer)
-library(Mus.musculus)
-#record log
-sink(paste0(prefix, "rnaSeq123Analysis.log"), append = TRUE)
-#
-ppi <- 300
-#tmp
-countsFileFolder <- '/home/liang.wan/workdir/Dec/rnaSeq-test/rawdata'
-countsFilePattern <- '^GSM.*'
-if(length(files = list.files(path=countsFileFolder, pattern = paste0(countsFilePattern,'.txt$'), full.names=TRUE)) > 0){
-    files = list.files(path=countsFileFolder, pattern = paste0(countsFilePattern,'.txt$'), full.names=TRUE)
+if(grepl(species, "Human", ignore.case = TRUE)){
+    library(Homo.sapiens)
+}else if(grepl(species, "Mouse", ignore.case = TRUE)){
+    library(Mus.musculus)
 }else{
-    cat("countsFileFolder or countsFilePattern is ERROR! Job failed!")
+    cat("Species is ERROR! species must be human or mouse, Job failed!")
     quie()
 }
+#record log
+sink(paste0(prefix, ".rnaSeq123Analysis.log"), append = TRUE)
+#
+ppi <- 300
+#countsFileFolder <- '/home/liang.wan/workdir/Dec/rnaSeq-test/rawdata'
+#countsFilePattern <- '^GSM.*'
+#if(length(list.files(path=countsFileDir, pattern = paste0(countsFilePattern,'.txt$'), full.names=TRUE)) > 0){
+#    files = list.files(path=countsFileDir, pattern = paste0(countsFilePattern,'.txt$'), full.names=TRUE)
+#}else{
+#    cat("countsFileFolder or countsFilePattern is ERROR! Job failed!")
+#    quie()
+#}
+#read config
+config <- read.table(file = configFile, sep="\t", header = TRUE)
+files <- as.character(config[,1])
 #read DGE counts matrix
 x <- readDGE(files, columns=c(1,3))
 dim(x)
-samplenames <- substring(colnames(x), nchar(colnames(x))+13, nchar(colnames(x)))
+#samplenames <- substring(colnames(x), nchar(colnames(x))+13, nchar(colnames(x)))
+samplenames <- as.character(config[,2])
 colnames(x) <- samplenames
 #组织样本信息，包括分组，不同lane测序信息
-group <- as.factor(c("LP", "ML", "Basal", "Basal", "ML", "LP", 
-                     "Basal", "ML", "LP"))
+#group <- as.factor(c("LP", "ML", "Basal", "Basal", "ML", "LP", 
+#                     "Basal", "ML", "LP"))
+group <- as.factor(config[,3])
 #
-lane <- as.factor(rep(c("L004","L006","L008"), c(3,4,2)))
+#lane <- as.factor(rep(c("L004","L006","L008"), c(3,4,2)))
+lane <- as.factor(config[,4])
 x$samples$lane <- lane
 #
 x$samples
